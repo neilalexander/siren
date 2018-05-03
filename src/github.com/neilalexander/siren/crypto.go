@@ -7,33 +7,37 @@ import "github.com/neilalexander/siren/sirenproto"
 import proto "github.com/golang/protobuf/proto"
 import "golang.org/x/crypto/nacl/box"
 
-const CryptoPublicKeyLen = 32
-const CryptoPrivateKeyLen = 32
-const CryptoSharedKeyLen = 32
-const CryptoNonceLen = 24
-const CryptoOverhead = box.Overhead
+// Export these
+const cryptoPublicKeyLen = 32
+const cryptoPrivateKeyLen = 32
 
-type CryptoPublicKey [CryptoPublicKeyLen]byte
-type CryptoPrivateKey [CryptoPrivateKeyLen]byte
-type CryptoSharedKey [CryptoSharedKeyLen]byte
-type CryptoNonce [CryptoNonceLen]byte
+// Don't export these
+const cryptoSharedKeyLen = 32
+const cryptoNonceLen = 24
+const cryptoOverhead = box.Overhead
 
-func NewCryptoKeys() (*CryptoPublicKey, *CryptoPrivateKey) {
+// Don't export these
+type cryptoPublicKey [cryptoPublicKeyLen]byte
+type cryptoPrivateKey [cryptoPrivateKeyLen]byte
+type cryptoSharedKey [cryptoSharedKeyLen]byte
+type cryptoNonce [cryptoNonceLen]byte
+
+func NewCryptoKeys() (*cryptoPublicKey, *cryptoPrivateKey) {
 	pubBytes, privBytes, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	return (*CryptoPublicKey)(pubBytes), (*CryptoPrivateKey)(privBytes)
+	return (*cryptoPublicKey)(pubBytes), (*cryptoPrivateKey)(privBytes)
 }
 
-func EncryptPayload(remotePublicKey CryptoPublicKey, localPrivateKey CryptoPrivateKey, p *sirenproto.Payload) (*sirenproto.EncryptedPayload, error) {
-	var nonce [CryptoNonceLen]byte
+func EncryptPayload(remotePublicKey cryptoPublicKey, localPrivateKey cryptoPrivateKey, p *sirenproto.Payload) (*sirenproto.EncryptedPayload, error) {
+	var nonce [cryptoNonceLen]byte
 	message, err := proto.Marshal(p)
 	if err != nil {
 		return nil, errors.New("Failed to encode packet")
 	}
 
-	crypted := make([]byte, 0, len(message)+CryptoOverhead)
+	crypted := make([]byte, 0, len(message)+cryptoOverhead)
 	boxed := box.Seal(crypted, message, &nonce,
 		(*[32]byte)(&remotePublicKey),
 		(*[32]byte)(&localPrivateKey))
@@ -43,8 +47,8 @@ func EncryptPayload(remotePublicKey CryptoPublicKey, localPrivateKey CryptoPriva
 	}, nil
 }
 
-func DecryptPayload(remotePublicKey CryptoPublicKey, localPrivateKey CryptoPrivateKey, p *sirenproto.EncryptedPayload) (*sirenproto.Payload, error) {
-	var nonce [CryptoNonceLen]byte
+func DecryptPayload(remotePublicKey cryptoPublicKey, localPrivateKey cryptoPrivateKey, p *sirenproto.EncryptedPayload) (*sirenproto.Payload, error) {
+	var nonce [cryptoNonceLen]byte
 	decrypted := make([]byte, 0, len(p.Ciphertext))
 	unboxed, success := box.Open(decrypted, p.Ciphertext, &nonce,
 		(*[32]byte)(&remotePublicKey),
@@ -62,10 +66,10 @@ func DecryptPayload(remotePublicKey CryptoPublicKey, localPrivateKey CryptoPriva
 	return payloadout, nil
 }
 
-func (c *connection) EncryptPayload(localPrivateKey CryptoPrivateKey, payload *sirenproto.Payload) (*sirenproto.EncryptedPayload, error) {
+func (c *connection) EncryptPayload(localPrivateKey cryptoPrivateKey, payload *sirenproto.Payload) (*sirenproto.EncryptedPayload, error) {
 	return EncryptPayload(c.remotePublicKey, localPrivateKey, payload)
 }
 
-func (c *connection) DecryptPayload(localPrivateKey CryptoPrivateKey, payload *sirenproto.EncryptedPayload) (*sirenproto.Payload, error) {
+func (c *connection) DecryptPayload(localPrivateKey cryptoPrivateKey, payload *sirenproto.EncryptedPayload) (*sirenproto.Payload, error) {
 	return DecryptPayload(c.remotePublicKey, localPrivateKey, payload)
 }

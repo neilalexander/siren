@@ -17,7 +17,7 @@ const (
 
 type connection struct {
 	state            int
-	remotePublicKey  [CryptoPublicKeyLen]byte
+	remotePublicKey  [cryptoPublicKeyLen]byte
 	pingSequence     int64
 	pingLastResponse time.Time
 	connection       net.Conn

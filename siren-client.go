@@ -14,7 +14,7 @@ import "github.com/neilalexander/siren"
 
 func main() {
 	var connectionState int
-	var remotePublicKey siren.CryptoPublicKey
+	var remotePublicKey [32]byte
 	publicKey, privateKey := siren.NewCryptoKeys()
 	fmt.Println("public key:", *publicKey)
 	fmt.Println("private key:", *privateKey)
