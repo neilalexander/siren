@@ -1,0 +1,14 @@
+#!/bin/sh
+
+export GOPATH=$PWD
+
+mkdir -p src/github.com/neilalexander/siren/sirenproto/
+protoc --go_out=src/github.com/neilalexander/siren/sirenproto/ siren*.proto
+
+go get -d -v
+go get -d -v github.com/neilalexander/siren
+
+for file in *.go ; do
+  echo "Building: $file"
+  go build -v $file
+done

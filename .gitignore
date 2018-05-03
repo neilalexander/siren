@@ -1,0 +1,7 @@
+siren-server
+siren-client
+.git
+!*.go
+*.pb.go
+src/golang.org
+src/github.com/golang

@@ -1,0 +1,77 @@
+syntax = "proto3";
+package sirenproto;
+
+message EncryptedPayload {
+  bytes Ciphertext = 1;
+}
+
+message Payload {
+  oneof Contents {
+    Ping Ping = 1;
+    Pong Pong = 2;
+    Ack Ack = 3;
+
+    HelloIAm HelloIAm = 11;
+    Message Message = 12;
+
+    DirectoryRequest DirectoryRequest = 21;
+    DirectoryResponse DirectoryResponse = 22;
+  };
+
+  bytes Signature = 99;
+}
+
+message Packet {
+  int32 Version = 1;
+  oneof PayloadType {
+    Payload Payload = 2;
+    EncryptedPayload EncryptedPayload = 3;
+  }
+}
+
+message DirectoryRequest {
+  string UID = 1;
+}
+
+message DirectoryResponse {
+  string UID = 1;
+  bytes UserSigningKey = 2;
+  repeated bytes DeviceEncryptionKey = 3;
+}
+
+message Ping {
+  int64 Sequence = 1;
+}
+
+message Pong {
+  int64 Sequence = 1;
+}
+
+message Ack {
+  enum Conditions {
+    SUCCESS = 0;
+    TERMINATE = 1;
+    TRANSACT_START = 2;
+    TRANSACT_RESULT = 3;
+    INVALID_PACKET = 4;
+    NOT_IMPLEMENTED = 5;
+    REQUIRES_ENCRYPTION = 6;
+  }
+  Conditions Condition = 1;
+  string Text = 2;
+  int32 TransactionID = 3;
+}
+
+message HelloIAm {
+  enum ConnectionTypes {
+    CLIENT_TO_SERVER = 0;
+    SERVER_TO_SERVER = 1;
+  }
+  ConnectionTypes ConnectionType = 1;
+  bytes PublicKey = 2;
+}
+
+message Message {
+  string Destination = 1;
+  bytes EncryptedMessage = 2;
+}
