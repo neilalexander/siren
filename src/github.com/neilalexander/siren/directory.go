@@ -2,6 +2,7 @@ package siren
 
 import "fmt"
 import "time"
+import "strings"
 
 import "github.com/neilalexander/siren/sirenproto"
 
@@ -61,10 +62,31 @@ func (d *directory) directoryRequest(r sirenproto.DirectoryRequest, c chan siren
 	// Look up the appropriate function for the type of directory
 	if d.isLocalDirectory {
 		c <- d.directoryRequestInternal(r)
+	} else {
+		c <- d.directoryRequestExternal(r)
 	}
 }
 
 func (d *directory) directoryRequestInternal(r sirenproto.DirectoryRequest) sirenproto.DirectoryResponse {
+	// Create the directory response object based on the USK and DEK maps
+	return sirenproto.DirectoryResponse{
+		UID:                 r.UID,
+		UserSigningKey:      d.mapUIDtoUSK[r.UID].publicKey,
+		DeviceEncryptionKey: d.mapUIDtoDEK[r.UID].publicKeys,
+	}
+}
+
+func (d *directory) directoryRequestExternal(r sirenproto.DirectoryRequest) sirenproto.DirectoryResponse {
+	// Extract the domain part
+	parts := strings.Split(strings.Trim(r.UID, " \t\r\n"), "@")
+	if len(parts) != 2 {
+		fmt.Println("Invalid UID")
+		return sirenproto.DirectoryResponse{}
+	}
+
+	// Create a connection if needed to the remote server
+	d.server.router.initiateOutgoingConnection(parts[1])
+
 	// Create the directory response object based on the USK and DEK maps
 	return sirenproto.DirectoryResponse{
 		UID:                 r.UID,

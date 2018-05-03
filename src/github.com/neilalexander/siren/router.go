@@ -7,11 +7,11 @@ import "os"
 import "github.com/neilalexander/siren/sirenproto"
 
 type router struct {
-	server                *Server
-	listener              net.Listener
-	connections           []connection
-	mapDomainToConnection map[string]connection
-	in                    chan *sirenproto.Payload
+	server      *Server
+	listener    net.Listener
+	connections []connection
+	federations map[string]connection
+	in          chan *sirenproto.Payload
 }
 
 func (r *router) start(s *Server) {
@@ -19,6 +19,7 @@ func (r *router) start(s *Server) {
 
 	r.server = s
 	r.connections = make([]connection, r.server.config.MaximumS2SConnections)
+	r.federations = make(map[string]connection)
 	r.in = make(chan *sirenproto.Payload)
 
 	go r.listenForConnections()
@@ -62,6 +63,13 @@ func (r *router) listenForConnections() {
 }
 
 func (r *router) initiateOutgoingConnection(domain string) {
+	// Let's see if we already have a federation connection open
+	// for this domain - if we do then we don't need to open
+	// another one
+	if _, ok := r.federations[domain]; ok {
+		return
+	}
+
 	// Look up the _siren._tcp.hostname.com DNS SRV record - this
 	// will tell us where we can find the remote server
 	_, addr, err := net.LookupSRV("siren", "tcp", domain)
@@ -83,8 +91,10 @@ func (r *router) initiateOutgoingConnection(domain string) {
 				connection:       conn,
 				writeEncrypted:   make(chan *sirenproto.Payload, 10),
 				writeUnencrypted: make(chan *sirenproto.Payload, 10),
+				federationDomain: domain,
 			}
 			r.connections = append(r.connections, *connection)
+			r.federations[domain] = *connection
 
 			// Start the read and write threads for the new connection
 			go connection.writeThread(r, true)

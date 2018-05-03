@@ -5,6 +5,7 @@ import "net"
 import "time"
 import "reflect"
 import "strings"
+import "bytes"
 
 import "github.com/neilalexander/siren/sirenproto"
 import proto "github.com/golang/protobuf/proto"
@@ -26,12 +27,16 @@ type connection struct {
 	writeUnencrypted chan *sirenproto.Payload
 	terminateWrite   chan bool
 	writeTicker      *time.Ticker
+	federationDomain string
 }
 
 func (c *connection) writeThread(r *router, initiator bool) {
 	c.terminateWrite = make(chan bool)
 	c.writeTicker = time.NewTicker(time.Second)
 	defer c.writeTicker.Stop()
+	if len(c.federationDomain) > 0 {
+		defer delete(r.server.router.federations, c.federationDomain)
+	}
 
 	// If we are the initiator of the connection then the first thing we
 	// need to do is introduce ourself to the remote side - this includes
@@ -160,7 +165,6 @@ loop:
 		switch received := packetin.PayloadType.(type) {
 		case *sirenproto.Packet_EncryptedPayload:
 			// The received packet was encrypted, therefore decrypt it
-			fmt.Println("Received encrypted payload")
 			payload, err = c.DecryptPayload(r.server.config.PrivateKey, received.EncryptedPayload)
 			if err != nil {
 				fmt.Println(err)
@@ -205,6 +209,20 @@ loop:
 						}
 						break loop
 					}
+				}
+				// Make sure that we aren't connecting to ourselves. This shouldn't
+				// ever really happen, but stranger things happen at sea
+				if bytes.Equal(received.HelloIAm.PublicKey[:32], r.server.config.PublicKey[:32]) {
+					fmt.Println("Rejecting connection from same public key")
+					c.writeEncrypted <- &sirenproto.Payload{
+						Contents: &sirenproto.Payload_Ack{
+							Ack: &sirenproto.Ack{
+								Condition: sirenproto.Ack_TERMINATE,
+								Text:      "Rejecting connection from same public key",
+							},
+						},
+					}
+					break loop
 				}
 				// If the connection wasn't authenticated before this point then
 				// store the public key and connection type and mark the connection
@@ -287,13 +305,11 @@ loop:
 				// Check if we have a local directory for this domain, otherwise
 				// use the "external" directory which caches records from outside servers
 				directory := r.server.externaldirectory
-				fmt.Println("Found external directory")
 				for _, domain := range r.server.config.LocalDomains {
 					if domain == parts[1] {
 						directory = r.server.localdirectory
 					}
 				}
-				fmt.Printf("Directory %+v\n", directory)
 				// Create the request and create a channel to wait for the response.
 				// This thread will wait for the response before sending it to the
 				// remote side

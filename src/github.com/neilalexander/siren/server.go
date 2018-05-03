@@ -37,7 +37,7 @@ func DefaultServerConfig() ServerConfig {
 		ListenAddress:         "0.0.0.0:9989",
 		MaximumMessageSize:    4096, // 1048576,
 		MaximumS2SConnections: 4096,
-		FederationEnabled:     false,
+		FederationEnabled:     true,
 		LocalDomains:          []string{"test.com", "test.net"},
 		PublicKey:             *publicKey,
 		PrivateKey:            *privateKey,
