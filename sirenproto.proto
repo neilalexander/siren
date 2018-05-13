@@ -18,7 +18,7 @@ message Payload {
     DirectoryResponse DirectoryResponse = 22;
   };
 
-  bytes Signature = 99;
+  bytes UserSignature = 99;
 }
 
 message Packet {
@@ -51,15 +51,12 @@ message Ack {
   enum Conditions {
     SUCCESS = 0;
     TERMINATE = 1;
-    TRANSACT_START = 2;
-    TRANSACT_RESULT = 3;
-    INVALID_PACKET = 4;
-    NOT_IMPLEMENTED = 5;
-    REQUIRES_ENCRYPTION = 6;
+    INVALID_PACKET = 2;
+    NOT_IMPLEMENTED = 3;
+    REQUIRES_ENCRYPTION = 4;
   }
   Conditions Condition = 1;
   string Text = 2;
-  int32 TransactionID = 3;
 }
 
 message HelloIAm {

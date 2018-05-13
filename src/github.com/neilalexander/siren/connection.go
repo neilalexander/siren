@@ -222,7 +222,7 @@ loop:
 							},
 						},
 					}
-					break loop
+					// break loop
 				}
 				// If the connection wasn't authenticated before this point then
 				// store the public key and connection type and mark the connection

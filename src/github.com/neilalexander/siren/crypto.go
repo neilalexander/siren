@@ -6,21 +6,26 @@ import "errors"
 import "github.com/neilalexander/siren/sirenproto"
 import proto "github.com/golang/protobuf/proto"
 import "golang.org/x/crypto/nacl/box"
+import "golang.org/x/crypto/ed25519"
 
-// Export these
 const cryptoPublicKeyLen = 32
 const cryptoPrivateKeyLen = 32
-
-// Don't export these
 const cryptoSharedKeyLen = 32
 const cryptoNonceLen = 24
 const cryptoOverhead = box.Overhead
 
-// Don't export these
+const signaturePublicKeyLen = ed25519.PublicKeySize
+const signaturePrivateKeyLen = ed25519.PrivateKeySize
+const signatureLen = ed25519.SignatureSize
+
 type cryptoPublicKey [cryptoPublicKeyLen]byte
 type cryptoPrivateKey [cryptoPrivateKeyLen]byte
 type cryptoSharedKey [cryptoSharedKeyLen]byte
 type cryptoNonce [cryptoNonceLen]byte
+
+type signaturePublicKey [signaturePublicKeyLen]byte
+type signaturePrivateKey [signaturePrivateKeyLen]byte
+type signature [signatureLen]byte
 
 func NewCryptoKeys() (*cryptoPublicKey, *cryptoPrivateKey) {
 	pubBytes, privBytes, err := box.GenerateKey(rand.Reader)
@@ -72,4 +77,40 @@ func (c *connection) EncryptPayload(localPrivateKey cryptoPrivateKey, payload *s
 
 func (c *connection) DecryptPayload(localPrivateKey cryptoPrivateKey, payload *sirenproto.EncryptedPayload) (*sirenproto.Payload, error) {
 	return DecryptPayload(c.remotePublicKey, localPrivateKey, payload)
+}
+
+func NewSignatureKeys() (*signaturePublicKey, *signaturePrivateKey) {
+	var public signaturePublicKey
+	var private signaturePrivateKey
+	publicSlice, privateSlice, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	copy(public[:], publicSlice)
+	copy(private[:], privateSlice)
+	return &public, &private
+}
+
+func Sign(private *signaturePrivateKey, msg []byte) *signature {
+	var signature signature
+	signatureSlice := ed25519.Sign(private[:], msg)
+	copy(signature[:], signatureSlice)
+	return &signature
+}
+
+func Verify(public *signaturePublicKey, msg []byte, signature *signature) bool {
+	return ed25519.Verify(public[:], msg, signature[:])
+}
+
+func SignPayload(private *signaturePrivateKey, msg []byte) *signature {
+	var signature signature
+	signatureSlice := ed25519.Sign(private[:], msg)
+	copy(signature[:], signatureSlice)
+	return &signature
+}
+
+func VerifyPayload(public *signaturePublicKey, msg []byte, signature *signature) bool {
+	// Should sig be an array instead of a slice?...
+	// It's fixed size, but
+	return ed25519.Verify(public[:], msg, signature[:])
 }

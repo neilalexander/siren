@@ -85,7 +85,20 @@ func (d *directory) directoryRequestExternal(r sirenproto.DirectoryRequest) sire
 	}
 
 	// Create a connection if needed to the remote server
-	d.server.router.initiateOutgoingConnection(parts[1])
+	err := d.server.router.initiateOutgoingConnection(parts[1])
+	if err != nil {
+		fmt.Println("Initiating outgoing connection failed")
+		return sirenproto.DirectoryResponse{
+			UID: r.UID,
+		}
+	}
+
+	// Send the request onto the remote server
+	d.server.router.federations[parts[1]].writeEncrypted <- &sirenproto.Payload{
+		Contents: &sirenproto.Payload_DirectoryRequest{
+			DirectoryRequest: &r,
+		},
+	}
 
 	// Create the directory response object based on the USK and DEK maps
 	return sirenproto.DirectoryResponse{

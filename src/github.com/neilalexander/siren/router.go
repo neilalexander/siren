@@ -3,6 +3,7 @@ package siren
 import "fmt"
 import "net"
 import "os"
+import "errors"
 
 import "github.com/neilalexander/siren/sirenproto"
 
@@ -62,26 +63,27 @@ func (r *router) listenForConnections() {
 	}
 }
 
-func (r *router) initiateOutgoingConnection(domain string) {
+func (r *router) initiateOutgoingConnection(domain string) error {
 	// Let's see if we already have a federation connection open
 	// for this domain - if we do then we don't need to open
 	// another one
 	if _, ok := r.federations[domain]; ok {
-		return
+		return nil
 	}
 
 	// Look up the _siren._tcp.hostname.com DNS SRV record - this
 	// will tell us where we can find the remote server
 	_, addr, err := net.LookupSRV("siren", "tcp", domain)
 	if err != nil {
-		fmt.Println("Error in DNS SRV lookup")
+		return errors.New("Unable to look up DNS SRV record")
 	}
 
 	// For each record that was returned, try to connect to it
 	for _, a := range addr {
 		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", a.Target, a.Port))
 		if err != nil {
-			fmt.Println("Unable to connect to federation target", a.Target)
+			// If this target failed then try the next one
+			continue
 		} else {
 			fmt.Println("Connected to federation target", a.Target)
 
@@ -102,7 +104,11 @@ func (r *router) initiateOutgoingConnection(domain string) {
 
 			// At this point we've been successful in finding a server to
 			// connect to, so we can stop trying
-			break
+			return nil
 		}
 	}
+
+	// If we reach this point then we haven't successfully connected
+	// to a federation target
+	return errors.New("Unable to connect to federation target")
 }
